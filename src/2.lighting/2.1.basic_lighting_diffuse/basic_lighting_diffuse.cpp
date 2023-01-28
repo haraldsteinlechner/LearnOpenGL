@@ -31,7 +31,7 @@ float deltaTime = 0.0f;
 float lastFrame = 0.0f;
 
 // lighting
-glm::vec3 lightPos(1.2f, 1.0f, 2.0f);
+glm::vec3 lightPosInModelSpace(1.2f, 1.0f, 2.0f);
 
 int main()
 {
@@ -172,6 +172,12 @@ int main()
         // ------
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+
+        // TODO: update dynamic data
+        glm::mat4x4 modelToWorld = glm::mat4(1.0); // identity matrix 
+        glm::vec3 lightPos = lightPosInModelSpace;  // use matrix to rotate light
+        
 
         // be sure to activate shader when setting uniforms/drawing objects
         lightingShader.use();
