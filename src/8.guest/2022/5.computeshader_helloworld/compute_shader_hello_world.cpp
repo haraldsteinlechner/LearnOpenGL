@@ -1,4 +1,4 @@
-#include <glad/glad.h>
+﻿#include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
 #include <glm/glm.hpp>
@@ -83,72 +83,56 @@ int main(int argc, char* argv[])
 
 	std::cout << "Number of invocations in a single local work group that may be dispatched to a compute shader " << max_compute_work_group_invocations << std::endl;
 
-	// build and compile shaders
-	// -------------------------
-	Shader screenQuad("screenQuad.vs", "screenQuad.fs");
-	ComputeShader computeShader("computeShader.cs");
+	ComputeShader vectorAdd("computeShader.cs");
 
-	screenQuad.use();
-	screenQuad.setInt("tex", 0);
-
-	// Create texture for opengl operation
-	// -----------------------------------
-	unsigned int texture;
-
-	glGenTextures(1, &texture);
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, texture);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, TEXTURE_WIDTH, TEXTURE_HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL);
-
-	glBindImageTexture(0, texture, 0, GL_FALSE, 0, GL_READ_WRITE, GL_RGBA32F);
-
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, texture);
-
-	// render loop
-	// -----------
-	int fCounter = 0;
-	while (!glfwWindowShouldClose(window))
+	int count = 1024;
+	float* input = new float[count];
+	float* output = new float[count];
+	for (int i = 0; i < 1024; i++)
 	{
-		// Set frame time
-		float currentFrame = glfwGetTime();
-		deltaTime = currentFrame - lastFrame;
-		lastFrame = currentFrame;
-		if(fCounter > 500) {
-			std::cout << "FPS: " << 1 / deltaTime << std::endl;
-			fCounter = 0;
-		} else {
-			fCounter++;
-		}		
-
-		computeShader.use();
-		computeShader.setFloat("t", currentFrame);
-		glDispatchCompute((unsigned int)TEXTURE_WIDTH/10, (unsigned int)TEXTURE_HEIGHT/10, 1);
-
-		// make sure writing to image has finished before read
-		glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
-
-		// render image to quad
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		screenQuad.use();
-		
-		renderQuad();
-
-		// glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
-		// -------------------------------------------------------------------------------
-		glfwSwapBuffers(window);
-		glfwPollEvents();
+		input[i] = (float)i;
+		output[i] = 0.0;
 	}
+
+	GLuint ssbo;
+	glGenBuffers(1, &ssbo);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo);
+	glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(float) * count, input, GL_STATIC_READ); //sizeof(data) only works for statically sized C/C++ arrays.
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, ssbo);
+
+	GLuint ssboOutput;
+	glGenBuffers(1, &ssboOutput);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssboOutput);
+	glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(float) * count, output, GL_STATIC_READ); //sizeof(data) only works for statically sized C/C++ arrays.
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, ssboOutput);
+
+
+	vectorAdd.use();
+	glDispatchCompute((unsigned int)count / 8, 1, 1);
+
+
+	// make sure writing to image has finished before read
+	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+
+
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssboOutput);
+	glGetBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(float) * count, output);
+
+
+	std::cout << "result: " << std::endl;
+	for (int i = 0; i < 24; i++) {
+		std::cout << output[i] << std::endl;
+
+	}
+
 
 	// optional: de-allocate all resources once they've outlived their purpose:
 	// ------------------------------------------------------------------------
-	glDeleteTextures(1, &texture);
-	glDeleteProgram(screenQuad.ID);
-	glDeleteProgram(computeShader.ID);
+	glDeleteProgram(vectorAdd.ID);
+	delete[] input;
+	delete[] output;
+	// delete other GL resources
 
 	glfwTerminate();
 
