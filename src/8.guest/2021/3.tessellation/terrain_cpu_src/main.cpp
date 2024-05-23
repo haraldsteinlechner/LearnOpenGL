@@ -131,7 +131,7 @@ int main()
             vertices.push_back( -width/2.0f + width*j/(float)width );   // vz
 
             textureCoordinates.push_back((float)j / (float)width);
-            textureCoordinates.push_back((float)i / (float)height);
+            textureCoordinates.push_back(1.0f - ((float)i / (float)height));
         }
     }
     std::cout << "Created " << vertices.size() / 3 << " vertices" << std::endl;
@@ -214,9 +214,10 @@ int main()
         glm::mat4 model = glm::mat4(1.0f);
         heightMapShader.setMat4("model", model);
         
+        //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+
         // render the cube
         glBindVertexArray(terrainVAO);
-//        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
         for(unsigned strip = 0; strip < numStrips; strip++)
         {
             glDrawElements(GL_TRIANGLE_STRIP,   // primitive type

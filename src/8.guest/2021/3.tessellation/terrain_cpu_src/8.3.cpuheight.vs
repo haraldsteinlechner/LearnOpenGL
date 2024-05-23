@@ -21,7 +21,8 @@ void main()
 { 
     float yScale = 64.0; // originally: 256.0 from texture * 64.0 / 256.0;
     float yShift = 16.0;
-    Height = textureLod(heightMap,tc,0.0).x;
-    vec3 displacedPos = vec3(aPos.x, Height * yScale - yShift, aPos.z);
+    float h = textureLod(heightMap,tc,0.0).x;
+    vec3 displacedPos = vec3(aPos.x, h * yScale - yShift, aPos.z);
+    Height = displacedPos.y;
     gl_Position = projection * view * model * vec4(displacedPos, 1.0);
 }
