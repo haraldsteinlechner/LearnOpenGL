@@ -87,42 +87,54 @@ int main()
 
     // load and create a texture
     // -------------------------
+    unsigned int texture;
+    glGenTextures(1, &texture);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, texture); // all upcoming GL_TEXTURE_2D operations now have effect on this texture object
+    // set the texture wrapping parameters
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	// set texture wrapping to GL_REPEAT (default wrapping method)
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    // set texture filtering parameters
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     // load image, create texture and generate mipmaps
-    // The FileSystem::getPath(...) is part of the GitHub repository so we can find files on any IDE/platform; replace it with your own image path.
-    stbi_set_flip_vertically_on_load(true);
     int width, height, nrChannels;
-    unsigned char *data = stbi_load(FileSystem::getPath("resources/heightmaps/iceland_heightmap.png").c_str(), &width, &height, &nrChannels, 0);
+    // The FileSystem::getPath(...) is part of the GitHub repository so we can find files on any IDE/platform; replace it with your own image path.
+    unsigned char* data = stbi_load(FileSystem::getPath("resources/heightmaps/iceland_heightmap.png").c_str(), &width, &height, &nrChannels, 0);
     if (data)
     {
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+        glGenerateMipmap(GL_TEXTURE_2D);
+
+        heightMapShader.setInt("heightMap", 0);
         std::cout << "Loaded heightmap of size " << height << " x " << width << std::endl;
     }
     else
     {
         std::cout << "Failed to load texture" << std::endl;
     }
+    stbi_image_free(data);
 
 
     // set up vertex data (and buffer(s)) and configure vertex attributes
     // ------------------------------------------------------------------
     std::vector<float> vertices;
-    float yScale = 64.0f / 256.0f, yShift = 16.0f;
+    std::vector<float> textureCoordinates;
     int rez = 1;
-    unsigned bytePerPixel = nrChannels;
     for(int i = 0; i < height; i++)
     {
         for(int j = 0; j < width; j++)
         {
-            unsigned char* pixelOffset = data + (j + width * i) * bytePerPixel;
-            unsigned char y = pixelOffset[0];
-
             // vertex
             vertices.push_back( -height/2.0f + height*i/(float)height );   // vx
-            vertices.push_back( (int) y * yScale - yShift);   // vy
+            vertices.push_back( 0.0f);   // vy
             vertices.push_back( -width/2.0f + width*j/(float)width );   // vz
+
+            textureCoordinates.push_back((float)j / (float)width);
+            textureCoordinates.push_back((float)i / (float)height);
         }
     }
-    std::cout << "Loaded " << vertices.size() / 3 << " vertices" << std::endl;
-    stbi_image_free(data);
+    std::cout << "Created " << vertices.size() / 3 << " vertices" << std::endl;
 
     std::vector<unsigned> indices;
     for(unsigned i = 0; i < height-1; i += rez)
@@ -143,7 +155,7 @@ int main()
     std::cout << "Created " << numStrips * numTrisPerStrip << " triangles total" << std::endl;
 
     // first, configure the cube's VAO (and terrainVBO + terrainIBO)
-    unsigned int terrainVAO, terrainVBO, terrainIBO;
+    unsigned int terrainVAO, terrainVBO, terrainTextureCoordVBO, terrainIBO;
     glGenVertexArrays(1, &terrainVAO);
     glBindVertexArray(terrainVAO);
 
@@ -154,6 +166,14 @@ int main()
     // position attribute
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
+
+    glGenBuffers(1, &terrainTextureCoordVBO);
+    glBindBuffer(GL_ARRAY_BUFFER, terrainTextureCoordVBO);
+    glBufferData(GL_ARRAY_BUFFER, textureCoordinates.size() * sizeof(float), &textureCoordinates[0], GL_STATIC_DRAW);
+
+    // texture coordinate attribute
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(1);
 
     glGenBuffers(1, &terrainIBO);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, terrainIBO);
@@ -179,6 +199,7 @@ int main()
         // ------
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
 
         // be sure to activate shader when setting uniforms/drawing objects
         heightMapShader.use();
