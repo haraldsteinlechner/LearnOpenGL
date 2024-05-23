@@ -28,7 +28,7 @@ const unsigned int NUM_PATCH_PTS = 4;
 // camera - give pretty starting point
 Camera camera(glm::vec3(67.0f, 627.5f, 169.9f),
               glm::vec3(0.0f, 1.0f, 0.0f),
-              -128.1f, -42.4f);
+              -128.1f, -42.4f, 125.0);
 float lastX = SCR_WIDTH / 2.0f;
 float lastY = SCR_HEIGHT / 2.0f;
 bool firstMouse = true;
@@ -206,7 +206,8 @@ int main()
         glm::mat4 model = glm::mat4(1.0f);
         tessHeightMapShader.setMat4("model", model);
 
-        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+        //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+        
         // render the terrain
         glBindVertexArray(terrainVAO);
         glDrawArrays(GL_PATCHES, 0, NUM_PATCH_PTS*rez*rez);
