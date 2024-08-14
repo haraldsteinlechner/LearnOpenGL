@@ -4,6 +4,7 @@ out vec4 FragColor;
 in vec2 TexCoords;
 in vec3 FragWorldPos;
 
+uniform vec4 debugColor;
 uniform vec4 cursorPos;
 uniform sampler2D texture_diffuse1;
 

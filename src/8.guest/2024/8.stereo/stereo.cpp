@@ -26,7 +26,7 @@ const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 600;
 
 // camera
-OrbitCamera camera(3.0);
+OrbitCamera camera(5.0);
 float lastX = SCR_WIDTH / 2.0f;
 float lastY = SCR_HEIGHT / 2.0f;
 bool firstMouse = true;
@@ -35,10 +35,10 @@ bool firstMouse = true;
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
 
-int currentWinWidth = 0;
-int currentWinHeight = 0;
+int currentWinWidth = SCR_WIDTH;
+int currentWinHeight = SCR_HEIGHT;
 
-float separation = 0.01;
+float separation = 0.0045;
 
 bool isStereoWindow = false;
 int viewMode = 0;
@@ -126,6 +126,8 @@ int main()
     // -----------
     while (!glfwWindowShouldClose(window))
     {
+        GLboolean stereoEnabled = false;
+        glGetBooleanv(GL_STEREO, &stereoEnabled);
         // per-frame time logic
         // --------------------
         float currentFrame = static_cast<float>(glfwGetTime());
@@ -157,8 +159,8 @@ int main()
          
         glm::mat4 centerProjection = glm::perspective(glm::radians(70.0f), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
         auto projection = centerProjection;
-        if (viewMode == 0) projection = offsetProjection(centerProjection, -separation, camera.GetRadius());
-        else if (viewMode == 1) projection = offsetProjection(centerProjection, separation, camera.GetRadius());
+        if (viewMode == 0) projection = offsetProjection(centerProjection, -separation, -camera.GetRadius());
+        else if (viewMode == 1) projection = offsetProjection(centerProjection, separation, -camera.GetRadius());
         else projection = centerProjection;
 
         ourShader.setMat4("projection", projection);
@@ -181,15 +183,20 @@ int main()
             ourShader.setVec4("cursorPos", glm::vec4(worldPos.x, worldPos.y, worldPos.z, depth != 1.0 ? 1.0f : 0.0f));
         }
 
-        //glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        //glDrawBuffer(GL_BACK_LEFT);
-        //ourShader.setMat4("projection", offsetProjection(projection, -separation / currentWinWidth, camera.GetRadius()));
-        //ourModel.Draw(ourShader);
+        glDrawBuffer(GL_BACK_LEFT);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        ourShader.setMat4("projection", offsetProjection(centerProjection, -separation, -camera.GetRadius()));
+        ourShader.setVec4("debugColor", glm::vec4(1.0, 0.0, 0.0, 1.0));
+        ourShader.use(); 
+        ourModel.Draw(ourShader);  
 
-        //glDrawBuffer(GL_BACK_RIGHT);
-        //ourShader.setMat4("projection", offsetProjection(projection, separation / currentWinWidth, camera.GetRadius()));
-        //ourModel.Draw(ourShader);
+        glDrawBuffer(GL_BACK_RIGHT);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        ourShader.setMat4("projection", offsetProjection(centerProjection, separation, -camera.GetRadius()));
+        ourShader.setVec4("debugColor", glm::vec4(0.0, 1.0, 0.0, 1.0));
+        ourShader.use();
+        ourModel.Draw(ourShader); 
 
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
         // -------------------------------------------------------------------------------
@@ -269,10 +276,10 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
-    if (key == GLFW_KEY_PAGE_DOWN && action == GLFW_PRESS || action == GLFW_REPEAT)
-        separation -= 0.001;
-    else if (key == GLFW_KEY_PAGE_UP && action == GLFW_PRESS || action == GLFW_REPEAT)
-        separation += 0.001;
+    if (key == GLFW_KEY_PAGE_DOWN && (action == GLFW_PRESS || action == GLFW_REPEAT))
+        separation -= 0.0001;
+    else if (key == GLFW_KEY_PAGE_UP && (action == GLFW_PRESS || action == GLFW_REPEAT))
+        separation += 0.0001;
     else if (key == GLFW_KEY_M && action == GLFW_RELEASE)
         viewMode = (viewMode + 1) % 3;
 
