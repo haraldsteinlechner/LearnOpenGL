@@ -2,7 +2,7 @@
 
 ### Idea & Background
 
-The idea of this example is to show a *minimal* setup for native stereo rendering and hints how interactions can be implemented leveraging stereo viewing. 
+The idea of this example is to show a *minimal* setup for native stereo rendering and hints how interactions can be implemented leveraging stereo. 
 Often examples are quite large and full of implementation details (layered rendering, multi-view extensions, model loading, ui frameworks etc.) or or too small not even showing how the camera and mouse interactions should be adapted. This example fills this gap.
 However, throughout in the code walkthrough i give pointers to advanced topics and more efficient implementations.
 
@@ -21,7 +21,7 @@ The code is based on [the model loading example](https://github.com/JoeyDeVries/
 
     Adjust clip positions accordingly. In essense you need: `clipPos.x += EyeSign * Separation * ( clipPos.w – Convergence )`
 
-    Or on CPU side:
+    Or on CPU side we could adjust the center projection matrix:
     ```
     // could be done in shader. code from here [1] https://www.nvidia.com/content/gtc-2010/pdfs/2010_gtc2010.pdf
     glm::mat4 offsetProjection(glm::mat4& centerProjection, float separation, float convergence) {
@@ -61,9 +61,10 @@ The code is based on [the model loading example](https://github.com/JoeyDeVries/
 
     Again, there are many methods of varying complexity, most important however is to render a proxy mouse cursor at reasonable depth.
 
-    In this example i use a world-space circle directly rendered onto the object. This could be combined with different modes, or the cursor could be blitted directly to the quad buffer window using hardware overlay planes but let's stay simple.
+    In this example i use a world-space circle directly rendered onto the object serving as simple cursor placed at the correct depth. This could be combined with different modes, or the cursor could be blitted directly to the quad buffer window (ore even more complex using hardware mouse cursors...)
 
-    Instead of creating an acceleration data structure and really pick the scene using the center projection ray i use pixel readback for now. This can be implemented efficiently using asynchronous render-to-texture, but for now let's stay simple.
+    Next we need to get proper world space coordinates of the mouse cursor. This could be done by intersecting the center projection ray with the scene.
+    Most applications will have special code anyways, so in this example i will use the a super simple framebuffer readback based approach (old school).
     The standard code could look as such:
     ```
     { 
@@ -75,8 +76,9 @@ The code is based on [the model loading example](https://github.com/JoeyDeVries/
         auto worldPos = worldPosH / worldPosH.w; 
         }
     ```
+    Again, please note that this could be improved using render-to-texture, asynchronous readback aso. but again this is rather application specific.
 
-    Now we have a worldPos at hand which we can use in the shader directly.
+    Now with `worldPos` at hand which we can use in the shader directly.
     Also, by looking at `depth` we know if we picked the far plane. If so, use the windowing api to show the cursor, and hide it respectively:
     ```
             auto isHit = depth != 1.0;
@@ -88,12 +90,12 @@ The code is based on [the model loading example](https://github.com/JoeyDeVries/
         }
     ```
 
-    Pass it to the shader:
+    Next, pass the position to the shader and encode whether the cursor is valid in the `w` comonent:
     ```
             ourShader.setVec4("cursorPos", glm::vec4(worldPos.x, worldPos.y, worldPos.z, depth != 1.0 ? 1.0f : 0.0f));
     ```
 
-    In the shader one can use procedural methods for creating a visual cursor representation. I used smooth interpolation to prevent shader aliasing as such:
+    In the shader one can use procedural methods for creating a visual cursor representation e.g. by changing the fragment color if it is within the cusor range. Here, i used smooth interpolation to prevent shader aliasing as such:
     ```
     FragColor = texture(texture_diffuse1, TexCoords);
 
@@ -114,4 +116,4 @@ The code is based on [the model loading example](https://github.com/JoeyDeVries/
     ![cursor image](image.png)
 
 
-    
+    That's it, we just added portable stereo to an existing application, adapted the framebuffer creation, modified clip coordiantes and implemented a simple 3D cursor <3.
