@@ -19,6 +19,7 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 void mouse_button_callback(GLFWwindow* window, int button, int action, int mods);
 void processInput(GLFWwindow *window);
+void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
 
 // settings
 const unsigned int SCR_WIDTH = 800;
@@ -34,18 +35,18 @@ bool firstMouse = true;
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
 
-bool isStereoWindow = false;
+int currentWinWidth = 0;
+int currentWinHeight = 0;
 
-enum ViewMode {
-    ShowLeft = 0
-    ShowRight = 1
-    ShowStereo = 2
-};
+float separation = 0.01;
+
+bool isStereoWindow = false;
+int viewMode = 0;
 
 glm::mat4 offsetProjection(glm::mat4& centerProjection, float separation, float convergence) {
     glm::mat4 o = glm::mat4(centerProjection);
-    o[2][0] = o[2][0] - separation;
-    o[3][0] = o[3][0] - separation * convergence;
+    o[2][0] = o[2][0] + separation;
+    o[3][0] = o[3][0] + separation * convergence;
     return o;
 }
 
@@ -89,6 +90,7 @@ int main()
     glfwSetCursorPosCallback(window, mouse_callback);
     glfwSetMouseButtonCallback(window, mouse_button_callback);
     glfwSetScrollCallback(window, scroll_callback);
+    glfwSetKeyCallback(window, key_callback);
 
     // tell GLFW to capture our mouse
     //glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
@@ -137,6 +139,7 @@ int main()
         // render
         // ------
         glClearColor(0.05f, 0.05f, 0.05f, 1.0f);
+        glDrawBuffer(GL_BACK);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         // don't forget to enable shader before setting uniforms
@@ -151,12 +154,42 @@ int main()
         model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f)); // translate it down so it's at the center of the scene
         model = glm::scale(model, glm::vec3(1.0f, 1.0f, 1.0f));	// it's a bit too big for our scene, so scale it down
         ourShader.setMat4("model", model);
+         
+        glm::mat4 centerProjection = glm::perspective(glm::radians(70.0f), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
+        auto projection = centerProjection;
+        if (viewMode == 0) projection = offsetProjection(centerProjection, -separation, camera.GetRadius());
+        else if (viewMode == 1) projection = offsetProjection(centerProjection, separation, camera.GetRadius());
+        else projection = centerProjection;
 
-
-        glm::mat4 projection = glm::perspective(glm::radians(70.0f), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
         ourShader.setMat4("projection", projection);
-        ourModel.Draw(ourShader);
+        ourModel.Draw(ourShader); 
+          
+        { 
+            float depth = 0.0; 
+            glReadPixels(lastX, currentWinHeight - lastY, 1, 1, GL_DEPTH_COMPONENT, GL_FLOAT, &depth);
+            glm::mat4 vpInv = glm::inverse(projection * view); 
+            glm::vec4 ndc = glm::vec4((lastX / currentWinWidth) * 2.0 - 1.0, 1.0 - (lastY / currentWinHeight) * 2.0, depth * 2.0 - 1.0, 1.0);
+            auto worldPosH = vpInv * ndc;
+            auto worldPos = worldPosH / worldPosH.w; 
+            auto isHit = depth != 1.0;
+            if (isHit) {
+                glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
+            }
+            else {
+                glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+            }
+            ourShader.setVec4("cursorPos", glm::vec4(worldPos.x, worldPos.y, worldPos.z, depth != 1.0 ? 1.0f : 0.0f));
+        }
 
+        //glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        //glDrawBuffer(GL_BACK_LEFT);
+        //ourShader.setMat4("projection", offsetProjection(projection, -separation / currentWinWidth, camera.GetRadius()));
+        //ourModel.Draw(ourShader);
+
+        //glDrawBuffer(GL_BACK_RIGHT);
+        //ourShader.setMat4("projection", offsetProjection(projection, separation / currentWinWidth, camera.GetRadius()));
+        //ourModel.Draw(ourShader);
 
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
         // -------------------------------------------------------------------------------
@@ -176,6 +209,8 @@ void processInput(GLFWwindow *window)
 {
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
+
+
 }
 
 // glfw: whenever the window size changed (by OS or user resize) this callback function executes
@@ -185,6 +220,10 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
     // make sure the viewport matches the new window dimensions; note that width and 
     // height will be significantly larger than specified on retina displays.
     glViewport(0, 0, width, height);
+
+
+    currentWinWidth = width;
+    currentWinHeight = height;
 }
 
 // glfw: whenever the mouse moves, this callback is called
@@ -205,11 +244,11 @@ void mouse_callback(GLFWwindow* window, double xposIn, double yposIn)
     float yoffset = lastY - ypos; // reversed since y-coordinates go from bottom to top
 
     lastX = xpos;
-    lastY = ypos;
+    lastY = ypos; 
 
     camera.ProcessMouseOrbit(xoffset, yoffset);
-}
-
+} 
+  
 // glfw: whenever the mouse scroll wheel scrolls, this callback is called
 // ----------------------------------------------------------------------
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
@@ -226,4 +265,17 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
     if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_RELEASE)
         camera.ProcessMouseDown(false);
     
+}
+
+void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
+{
+    if (key == GLFW_KEY_PAGE_DOWN && action == GLFW_PRESS || action == GLFW_REPEAT)
+        separation -= 0.001;
+    else if (key == GLFW_KEY_PAGE_UP && action == GLFW_PRESS || action == GLFW_REPEAT)
+        separation += 0.001;
+    else if (key == GLFW_KEY_M && action == GLFW_RELEASE)
+        viewMode = (viewMode + 1) % 3;
+
+
+    std::cout << "separation: " << separation << std::endl;
 }

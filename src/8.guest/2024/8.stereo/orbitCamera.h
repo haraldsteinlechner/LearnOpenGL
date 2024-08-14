@@ -25,8 +25,8 @@ public:
     {
         glm::mat4 m = glm::mat4(1.0);
         m = glm::translate(m, glm::vec3(0.0, 0.0, -Radius));
-        m = glm::rotate(m, Yaw, glm::vec3(0.0, 1.0, 0.0));
         m = glm::rotate(m, Pitch, glm::vec3(1.0, 0.0, 0.0));
+        m = glm::rotate(m, Yaw, glm::vec3(0.0, 1.0, 0.0));
         return m;
     }
 
@@ -58,5 +58,9 @@ public:
 
     void ProcessMouseDown(bool down) {
         MouseDown = down;
+    }
+
+    float GetRadius() {
+        return Radius;
     }
 };
