@@ -25,8 +25,12 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 600;
 
+// keep up to date on rescale of window to track mouse positions
+int currentWinWidth = SCR_WIDTH;
+int currentWinHeight = SCR_HEIGHT;
+
 // camera
-OrbitCamera camera(5.0);
+OrbitCamera camera(5.0); // 5 units away.
 float lastX = SCR_WIDTH / 2.0f;
 float lastY = SCR_HEIGHT / 2.0f;
 bool firstMouse = true;
@@ -35,14 +39,13 @@ bool firstMouse = true;
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
 
-int currentWinWidth = SCR_WIDTH;
-int currentWinHeight = SCR_HEIGHT;
-
+// see interaxial and separation in [1] https://www.nvidia.com/content/gtc-2010/pdfs/2010_gtc2010.pdf
 float separation = 0.0045;
 
 bool isStereoWindow = false;
 int viewMode = 0;
 
+// could be done in shader. code from here [1] https://www.nvidia.com/content/gtc-2010/pdfs/2010_gtc2010.pdf
 glm::mat4 offsetProjection(glm::mat4& centerProjection, float separation, float convergence) {
     glm::mat4 o = glm::mat4(centerProjection);
     o[2][0] = o[2][0] + separation;
@@ -116,11 +119,11 @@ int main()
 
     // load models
     // -----------
-    Model ourModel(FileSystem::getPath("resources/objects/backpack/backpack.obj"));
+    auto p = FileSystem::getPath("./resources/objects/backpack/backpack.obj");
+    std::cout << "loading: " << p << std::endl;
+    Model ourModel(p);
 
-    
-    // draw in wireframe
-    //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+   
 
     // render loop
     // -----------
