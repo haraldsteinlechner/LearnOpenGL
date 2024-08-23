@@ -41,17 +41,11 @@ float lastFrame = 0.0f;
 
 // see interaxial and separation in [1] https://www.nvidia.com/content/gtc-2010/pdfs/2010_gtc2010.pdf
 float separation = 0.0045;
+float convergence = 1.0;
 
 bool isStereoWindow = false;
 int viewMode = 0;
 
-// could be done in shader. code from here [1] https://www.nvidia.com/content/gtc-2010/pdfs/2010_gtc2010.pdf
-glm::mat4 offsetProjection(glm::mat4& centerProjection, float separation, float convergence) {
-    glm::mat4 o = glm::mat4(centerProjection);
-    o[2][0] = o[2][0] + separation;
-    o[3][0] = o[3][0] + separation * convergence;
-    return o;
-}
 
 int main()
 {
@@ -161,18 +155,13 @@ int main()
         ourShader.setMat4("model", model);
          
         glm::mat4 centerProjection = glm::perspective(glm::radians(70.0f), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
-        auto projection = centerProjection;
-        if (viewMode == 0) projection = offsetProjection(centerProjection, -separation, -camera.GetRadius());
-        else if (viewMode == 1) projection = offsetProjection(centerProjection, separation, -camera.GetRadius());
-        else projection = centerProjection;
-
-        ourShader.setMat4("projection", projection);
+        ourShader.setMat4("projection", centerProjection);
         ourModel.Draw(ourShader); 
           
         { 
             float depth = 0.0; 
             glReadPixels(lastX, currentWinHeight - lastY, 1, 1, GL_DEPTH_COMPONENT, GL_FLOAT, &depth);
-            glm::mat4 vpInv = glm::inverse(projection * view); 
+            glm::mat4 vpInv = glm::inverse(centerProjection * view);
             glm::vec4 ndc = glm::vec4((lastX / currentWinWidth) * 2.0 - 1.0, 1.0 - (lastY / currentWinHeight) * 2.0, depth * 2.0 - 1.0, 1.0);
             auto worldPosH = vpInv * ndc;
             auto worldPos = worldPosH / worldPosH.w; 
@@ -185,19 +174,25 @@ int main()
             }
             ourShader.setVec4("cursorPos", glm::vec4(worldPos.x, worldPos.y, worldPos.z, depth != 1.0 ? 1.0f : 0.0f));
         }
-
+         
 
         glDrawBuffer(GL_BACK_LEFT);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        ourShader.setMat4("projection", offsetProjection(centerProjection, -separation, -camera.GetRadius()));
+        ourShader.setMat4("projection", centerProjection);
+        ourShader.setFloat("eye", -1.0);
+        ourShader.setFloat("separation", separation);
+        ourShader.setFloat("convergence", convergence);
         ourShader.setVec4("debugColor", glm::vec4(1.0, 0.0, 0.0, 1.0));
         ourShader.use(); 
         ourModel.Draw(ourShader);  
 
         glDrawBuffer(GL_BACK_RIGHT);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        ourShader.setMat4("projection", offsetProjection(centerProjection, separation, -camera.GetRadius()));
+        ourShader.setMat4("projection", centerProjection);
         ourShader.setVec4("debugColor", glm::vec4(0.0, 1.0, 0.0, 1.0));
+        ourShader.setFloat("eye", 1.0);
+        ourShader.setFloat("separation", separation);
+        ourShader.setFloat("convergence", convergence);
         ourShader.use();
         ourModel.Draw(ourShader); 
 
@@ -283,9 +278,13 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
         separation -= 0.0001;
     else if (key == GLFW_KEY_PAGE_UP && (action == GLFW_PRESS || action == GLFW_REPEAT))
         separation += 0.0001;
+    else if (key == GLFW_KEY_KP_SUBTRACT && (action == GLFW_PRESS || action == GLFW_REPEAT))
+        convergence -= 0.5;
+    else if (key == GLFW_KEY_KP_ADD && (action == GLFW_PRESS || action == GLFW_REPEAT))
+        convergence += 0.6;
     else if (key == GLFW_KEY_M && action == GLFW_RELEASE)
         viewMode = (viewMode + 1) % 3;
 
 
-    std::cout << "separation: " << separation << std::endl;
+    std::cout << "separation: " << separation << "  " << convergence << std::endl;
 }

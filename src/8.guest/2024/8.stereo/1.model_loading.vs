@@ -10,10 +10,16 @@ uniform mat4 model;
 uniform mat4 view;
 uniform mat4 projection;
 
+uniform float eye;
+uniform float separation;
+uniform float convergence;
+
 void main()
 { 
     TexCoords = aTexCoords;    
     vec4 wp = model * vec4(aPos, 1.0);
-    gl_Position = projection * view * wp;
+    vec4 clipPos = projection * view * wp;
+    clipPos.x += eye * separation * (clipPos.w - convergence);
+    gl_Position = clipPos;
     FragWorldPos = wp.xyz;
 }
