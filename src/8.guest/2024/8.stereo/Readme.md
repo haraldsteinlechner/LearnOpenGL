@@ -21,16 +21,7 @@ The code is based on [the model loading example](https://github.com/JoeyDeVries/
 
     Adjust clip positions accordingly. In essense you need: `clipPos.x += EyeSign * Separation * ( clipPos.w – Convergence )`
 
-    Or on CPU side we could adjust the center projection matrix:
-    ```
-    // could be done in shader. code from here [1] https://www.nvidia.com/content/gtc-2010/pdfs/2010_gtc2010.pdf
-    glm::mat4 offsetProjection(glm::mat4& centerProjection, float separation, float convergence) {
-        glm::mat4 o = glm::mat4(centerProjection);
-        o[2][0] = o[2][0] + separation;
-        o[3][0] = o[3][0] + separation * convergence;
-        return o;
-    }
-    ```
+    Or on CPU side we could adjust the center projection matrix: https://paulbourke.net/stereographics/stereorender/
 
     Consult nvidia docs for the background [here](https://www.nvidia.com/content/gtc-2010/pdfs/2010_gtc2010.pdf).
 
